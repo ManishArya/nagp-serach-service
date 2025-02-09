@@ -13,12 +13,17 @@
 
         public List<string> Tags { get; set; } = [];
 
-        public int Price { get; set; }
+        public double Price { get; set; }
 
-        public int ? DiscountPrice { get; set; }    
+        public double ? DiscountPrice { get; set; }    
 
         public required string ImageUrl { get; set; }
 
         public bool IsAvailable { get; set; } = true;
+
+        public List<string> Colors { get; set; } = [];
+
+        public required string Color { get; set; }
+
     }
 }
