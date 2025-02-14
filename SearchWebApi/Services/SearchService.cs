@@ -1,10 +1,15 @@
-﻿using SearchWebApi.Models;
+﻿using Elastic.Clients.Elasticsearch.QueryDsl;
+using Elastic.Clients.Elasticsearch;
+using SearchWebApi.Elastic;
+using SearchWebApi.Models;
 using SearchWebApi.Services.Interfaces;
 
 namespace SearchWebApi.Services
 {
-    public class SearchService : ISearchService
+    public class SearchService (ElasticSearchService elasticSearchService) : ISearchService
     {
+        private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
+
         public List<Product> products =
         [
             new()
@@ -89,6 +94,16 @@ namespace SearchWebApi.Services
 
         async Task<AmcartListResponse<Product>> ISearchService.Search(SearchCriteriaRequest searchRequest)
         {
+            var request = new SearchRequest("mcart")
+            {
+                Query = new TermQuery("color") { Value = "orange" }
+            };
+
+            var r = await _elasticSearchService.Client.SearchAsync<Product>(request);
+            if(r.IsValidResponse)
+            {
+                var docs = r.Documents;
+            }
             SearchCriteriaRequest criteriaRequest = searchRequest ?? new();
             var filteredProducts = products;
             var filterCriteria = criteriaRequest.FilterCriteria;
@@ -118,7 +133,10 @@ namespace SearchWebApi.Services
                 if (colorCriteria != null)
                 {
                     var values = colorCriteria.Values;
-                    filteredProducts = filteredProducts.Where(f => values.Contains(f.Color)).ToList();
+                    if (values.Count > 0)
+                    {
+                        filteredProducts = filteredProducts.Where(f => values.Contains(f.Color)).ToList();
+                    }
                 }
 
                 var brandCriteria = filterCriteria.BrandCriteria;
@@ -126,7 +144,10 @@ namespace SearchWebApi.Services
                 if (brandCriteria != null)
                 {
                     var values = brandCriteria.Values;
-                    filteredProducts = filteredProducts.Where(f => values.Contains(f.Brand)).ToList();
+                    if (values.Count > 0)
+                    {
+                        filteredProducts = filteredProducts.Where(f => values.Contains(f.Brand)).ToList();
+                    }
                 }
             }
 
