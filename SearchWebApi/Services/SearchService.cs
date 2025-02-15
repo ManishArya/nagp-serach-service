@@ -3,174 +3,104 @@ using Elastic.Clients.Elasticsearch;
 using SearchWebApi.Elastic;
 using SearchWebApi.Models;
 using SearchWebApi.Services.Interfaces;
+using SearchWebApi.Utils;
+using System.Collections.ObjectModel;
 
 namespace SearchWebApi.Services
 {
-    public class SearchService (ElasticSearchService elasticSearchService) : ISearchService
+    public class SearchService(ElasticSearchService elasticSearchService) : ISearchService
     {
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
 
-        public List<Product> products =
-        [
-            new()
-            {
-                Id = 1,
-                Name = "Geometric Embroidered Mandarin Collar Mirror Work Cotton Silk Straight Kurta",
-                Description = "",
-                ImageUrl = "assets/images/kurta.jpg",
-                Price = 500,
-                Tags = ["Latest style", "Bestseller"],
-                Brand = "Roadster",
-                Category = ["clothing", "men-topwear", "men-kurta"],
-                Colors = ["red", "blue"],
-                Color = "orange"
-            },
-            new()
-            {
-                Id = 2,
-                Name = "Women Geometric Printed Straight Kurtis",
-                Description = "",
-                ImageUrl = "assets/images/kurti.jpg",
-                Price = 200,
-                DiscountPrice = 100,
-                Tags = ["Latest style"],
-                Brand = "Roadster",
-                Category = ["clothing", "fusion-wear", "women-kurti"],
-                Colors = ["red", "black"],
-                Color = "blue"
-            },
-            new()
-            {
-                Id = 3,
-                Name = "Men Relaxed Fit Pure Cotton Jeans",
-                Description = "",
-                ImageUrl = "assets/images/jeans.jpg",
-                Price = 1200,
-                Brand = "Roadster",
-                Category = ["clothing", "men-bottomwear", "men-jeans"],
-                IsAvailable = false,
-                Colors = ["red", "black"],
-                Color = "blue"
-            },
-            new()
-            {
-                Id = 4,
-                Name = "Men Solid Round Neck Pure Cotton T-shirt",
-                Description = "",
-                ImageUrl = "assets/images/t-shirt.jpg",
-                Price = 950,
-                DiscountPrice = 550,
-                Tags = ["New"],
-                Brand = "Roadster",
-                Category = ["clothing", "men-topwear", "men-tshirts"],
-                Colors = ["red", "green"],
-                Color = "black"
-            },
-            new()
-            {
-                Id=5,
-                Name = "Men Regular Fit Self Design Pure Cotton Casual Shirt",
-                Description = "",
-                ImageUrl = "assets/images/shirt.jpg",
-                Price = 850,
-                Brand = "Roadster",
-                Category = ["clothing", "men-topwear", "men-casual-shirts"],
-                Color = "blue"
-            },
-            new()
-            {
-                Id = 6,
-                Name = "Men Checked Single-Breasted Tailored-Fit Two-Piece Suit",
-                Description = "",
-                ImageUrl = "assets/images/suit.jpg",
-                Price = 1400,
-                DiscountPrice = 1100,
-                Brand = "Roadster",
-                Category = ["clothing", "men-topwear", "men-suits"],
-                Colors = ["brown", "blue"],
-                Color = "black"
-            }
-        ];
-
         async Task<AmcartListResponse<Product>> ISearchService.Search(SearchCriteriaRequest searchRequest)
         {
-            var request = new SearchRequest("mcart")
+            try
             {
-                Query = new TermQuery("color") { Value = "orange" }
-            };
+                SearchCriteriaRequest criteriaRequest = searchRequest ?? new();
+                var filterCriteria = criteriaRequest.FilterCriteria;
 
-            var r = await _elasticSearchService.Client.SearchAsync<Product>(request);
-            if(r.IsValidResponse)
-            {
-                var docs = r.Documents;
-            }
-            SearchCriteriaRequest criteriaRequest = searchRequest ?? new();
-            var filteredProducts = products;
-            var filterCriteria = criteriaRequest.FilterCriteria;
+                ICollection<Query> queries = [];
 
-            if (filterCriteria != null)
-            {
-                if (!string.IsNullOrEmpty(filterCriteria.SearchText))
+                if (filterCriteria != null)
                 {
-                    var searchText = filterCriteria.SearchText;
-                    filteredProducts = products.Where(p =>
+                    if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
-                        return (p.Name.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) || (
-                                    string.Join("/", p.Category).Contains(searchText, StringComparison.CurrentCultureIgnoreCase)
-                        ));
-                    }).ToList();
-                }
+                        var searchText = filterCriteria.SearchText.EscapeCharacters().ToLower();
+                        queries.Add(Query.QueryString(new QueryStringQuery() 
+                                    { Fields = Fields.FromStrings(["name", "brand", "tags"]), Query = "*"+searchText+"*"}));
+                    }
 
-                var priceCriteria = filterCriteria.PriceCriteria;
+                    var priceCriteria = filterCriteria.PriceCriteria;
 
-                if (priceCriteria != null)
-                {
-                    filteredProducts = filteredProducts.Where(p => (p.DiscountPrice ?? p.Price) >= priceCriteria.MinVal && (p.DiscountPrice ?? p.Price) <= priceCriteria.MaxVal).ToList();
-                }
-
-                var colorCriteria = filterCriteria.ColorCriteria;
-
-                if (colorCriteria != null)
-                {
-                    var values = colorCriteria.Values;
-                    if (values.Count > 0)
+                    if (priceCriteria != null)
                     {
-                        filteredProducts = filteredProducts.Where(f => values.Contains(f.Color)).ToList();
+                        queries.Add(Query.Range(new NumberRangeQuery(new Field("price")) { Gte = priceCriteria.MinVal, Lte = priceCriteria.MaxVal }));
+                    }
+
+                    var colorCriteria = filterCriteria.ColorCriteria;
+
+                    if (colorCriteria != null)
+                    {
+                        var values = colorCriteria.Values;
+                        if (values.Count > 0)
+                        {
+                            var fieldValues = values.Select(v => FieldValue.String(v)).ToList();
+                            queries.Add(Query.Terms(new TermsQuery() { Field = new Field("color"), Terms = new TermsQueryField(new ReadOnlyCollection<FieldValue>(fieldValues)) })); 
+                        }
+                    }
+
+                    var brandCriteria = filterCriteria.BrandCriteria;
+
+                    if (brandCriteria != null)
+                    {
+                        var values = brandCriteria.Values;
+                        if (values.Count > 0)
+                        {
+                            var fieldValues = values.Select(v => FieldValue.String(v)).ToList();
+                            queries.Add(Query.Terms(new TermsQuery() { Field = new Field("brand"), Terms = new TermsQueryField(new ReadOnlyCollection<FieldValue>(fieldValues)) }));
+                        }
                     }
                 }
 
-                var brandCriteria = filterCriteria.BrandCriteria;
+                var sortingCriteria = criteriaRequest.SortingCriteria;
+                var sortKey = sortingCriteria.SortKey;
+                var order = sortingCriteria.IsDescending ? SortOrder.Desc : SortOrder.Asc;
+                var expression = ExpressionBuilder.GetExpression<Product, object>(sortKey.ToString());
 
-                if (brandCriteria != null)
+                var request = new SearchRequest("mcart")
                 {
-                    var values = brandCriteria.Values;
-                    if (values.Count > 0)
-                    {
-                        filteredProducts = filteredProducts.Where(f => values.Contains(f.Brand)).ToList();
-                    }
+                    Size = criteriaRequest.PagingCriteria.Page,
+                    From = criteriaRequest.PagingCriteria.CurrentPage - 1,
+                    Sort = [SortOptions.Field(new Field(expression), new FieldSort() { Order = order, NumericType = FieldSortNumericType.Double })],
+                    Query = Query.Bool(new BoolQuery() { Must = queries })
+                };
+
+                var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
+                AmcartListContent<Product>? content = new();
+                AmcartRequestStatus status = AmcartRequestStatus.BadRequest;
+
+                if (response.IsValidResponse)
+                {
+                    var docs = response.Documents;
+                    content.Records = [..docs];
+                    content.Total = docs.Count;
+                    status = AmcartRequestStatus.Success;
                 }
-            }
 
-            var sortingCriteria = criteriaRequest.SortingCriteria;
-            var sortKey = sortingCriteria.SortKey;
-            var isDescending = sortingCriteria.IsDescending;
-
-            filteredProducts.Sort((p1, p2) =>
-            {
-                if(sortKey == SortKeyOption.Price) 
+                return new AmcartListResponse<Product>
                 {
-                    var p1Price = p1.DiscountPrice ?? p1.Price;
-                    var p2Price = p2.DiscountPrice ?? p2.Price;
-                    return isDescending ? (int)(p2Price - p1Price) : (int)(p1Price - p2Price);
-                } 
-                return p1.Name.CompareTo(p2.Name);
-            });
-
-            return await Task.FromResult(new AmcartListResponse<Product>
+                    Content = content,
+                    Status = status,
+                };
+            }
+            catch (Exception ex)
             {
-                Content = new AmcartListContent<Product> { Total = filteredProducts.Count, Records = filteredProducts },
-                Status = AmcartRequestStatus.Success,
-            });
+                return new AmcartListResponse<Product>
+                {
+                    Content = null,
+                    Status = AmcartRequestStatus.Error,
+                };
+            }
         }
     }
 }

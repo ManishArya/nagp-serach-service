@@ -2,7 +2,8 @@
 {
     public enum AmcartRequestStatus
     {
-        Success,
-        Error
+        Success = 200,
+        Error = 500,
+        BadRequest=400
     }
 }

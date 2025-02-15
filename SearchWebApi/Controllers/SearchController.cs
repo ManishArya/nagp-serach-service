@@ -13,7 +13,8 @@ namespace SearchWebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> SearchResults([FromBody] SearchCriteriaRequest searchRequest) 
         {
-            return Ok(await _searchService.Search(searchRequest));
+            var results = await _searchService.Search(searchRequest);
+            return StatusCode((int)results.Status, results);
         }
 
         [HttpGet]

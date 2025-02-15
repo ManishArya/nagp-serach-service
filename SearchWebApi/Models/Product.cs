@@ -3,6 +3,7 @@
     public class Product
     {
         public int Id { get; set; }
+
         public required string Name { get; set; }
 
         public string Description { get; set; } = string.Empty;
@@ -15,7 +16,7 @@
 
         public double Price { get; set; }
 
-        public double ? DiscountPrice { get; set; }    
+        public double ? BasePrice { get; set; }    
 
         public required string ImageUrl { get; set; }
 
@@ -24,6 +25,5 @@
         public List<string> Colors { get; set; } = [];
 
         public required string Color { get; set; }
-
     }
 }
