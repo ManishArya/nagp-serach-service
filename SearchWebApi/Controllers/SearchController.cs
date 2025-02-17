@@ -17,6 +17,13 @@ namespace SearchWebApi.Controllers
             return StatusCode((int)results.Status, results);
         }
 
+        [HttpGet("getsuggestions")]
+        public async Task<IActionResult> GetSearchSuggestions([FromQuery] string query) 
+        {
+            var results = await _searchService.GetSearchSuggestions(query);
+            return StatusCode((int)results.Status, results);
+        }
+
         [HttpGet]
         public string GetString() 
         {

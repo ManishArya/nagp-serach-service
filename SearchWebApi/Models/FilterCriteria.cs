@@ -16,9 +16,9 @@
 
     public class RangeFilterCriteria
     {
-        public double MinVal { get; set; }
+        public double? MinVal { get; set; }
 
-        public double MaxVal { get; set; }
+        public double? MaxVal { get; set; }
     }
 
     public class AnyFilterCriteria

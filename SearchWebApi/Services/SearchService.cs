@@ -8,9 +8,63 @@ using System.Collections.ObjectModel;
 
 namespace SearchWebApi.Services
 {
-    public class SearchService(ElasticSearchService elasticSearchService) : ISearchService
+    public class SearchService(ElasticSearchService elasticSearchService, ILogger<SearchService> logger) : ISearchService
     {
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
+        private readonly ILogger<SearchService> _logger = logger;
+
+        async Task<AmcartResponse<List<Product>>> ISearchService.GetSearchSuggestions(string query)
+        {
+            try
+            {
+                var amcartResponse = new AmcartResponse<List<Product>>() { Status = AmcartRequestStatus.BadRequest };
+
+                if (!string.IsNullOrEmpty(query))
+                {
+                    query = query
+                              .ReplaceUnwantedCharacter()
+                                .EscapeCharacters();
+
+                    var wildcardQuery = query + "*";
+                    var request = new SearchRequest("mcart")
+                    {
+                        Size = 50,
+                        From = 0,
+                        Query = Query.Bool(new BoolQuery()
+                        {
+                            Should = [Query.QueryString(new QueryStringQuery()
+                                        {
+                                            Fields = Fields.FromString("name"),
+                                            Query = wildcardQuery
+                                         }),
+                                       Query.MultiMatch(new MultiMatchQuery()
+                                        {
+                                            Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
+                                            Fuzziness = new Fuzziness("AUTO"),
+                                            Query = query
+                                         })]
+                        })
+                    };
+
+                    var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
+
+                    if (response.IsValidResponse)
+                    {
+                        var docs = response.Documents;
+                        amcartResponse.Content = [.. docs];
+                        amcartResponse.Status = AmcartRequestStatus.Success;
+                    }
+                }
+
+                return amcartResponse;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("{Message}", ex.Message);
+                return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
+            }
+        }
 
         async Task<AmcartListResponse<Product>> ISearchService.Search(SearchCriteriaRequest searchRequest)
         {
@@ -25,16 +79,71 @@ namespace SearchWebApi.Services
                 {
                     if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
-                        var searchText = filterCriteria.SearchText.EscapeCharacters().ToLower();
-                        queries.Add(Query.QueryString(new QueryStringQuery() 
-                                    { Fields = Fields.FromStrings(["name", "brand", "tags"]), Query = "*"+searchText+"*"}));
+                        var searchText = filterCriteria.SearchText.ToLower();
+                        ICollection< Query> searchQuries = [];
+
+                        if (searchText.Contains('/'))
+                        {
+                            var category = searchText.Split('/').Last();
+                            var categoryQuery = Query.Term(new TermQuery(new Field("category")) { Boost = 2, Value = category, CaseInsensitive = true });
+                            searchQuries.Add(categoryQuery);
+                        }
+                        else
+                        {
+                            searchText = searchText.EscapeCharacters();
+                            var multiMatchQuery = Query.
+                                                       MultiMatch(new MultiMatchQuery()
+                                                       {
+                                                           Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
+                                                           Query = searchText,
+                                                           Type = TextQueryType.Phrase
+                                                       });
+
+                            var multiMatchFuzzyQuery = Query.
+                                                        MultiMatch(new MultiMatchQuery()
+                                                        {
+                                                            Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
+                                                            Boost = 2,
+                                                            Query = searchText,
+                                                            Fuzziness = new Fuzziness("AUTO"),
+                                                        });
+                            var queryString = Query.
+                                                  QueryString(new QueryStringQuery()
+                                                  {
+                                                      Fields = Fields.FromStrings(["name", "brand", "tags", "color"]),
+                                                      Query = "*" + searchText + "*"
+                                                  });
+                            searchQuries = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
+                        }
+
+                        var boolQuery = Query.Bool(new BoolQuery() { Should = searchQuries, MinimumShouldMatch = 1 });
+                        queries.Add(boolQuery);
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
 
                     if (priceCriteria != null)
                     {
-                        queries.Add(Query.Range(new NumberRangeQuery(new Field("price")) { Gte = priceCriteria.MinVal, Lte = priceCriteria.MaxVal }));
+                        var maxPrice = priceCriteria.MaxVal;
+                        var minPrice = priceCriteria.MinVal;
+                        var numberRangeQuery = new NumberRangeQuery(new Field("price"));
+
+                        if (maxPrice != null & minPrice == null)
+                        {
+                            numberRangeQuery.Gte = maxPrice;
+                        }
+                        else if (minPrice != null && maxPrice == null)
+                        {
+                            numberRangeQuery.Lte = minPrice;
+                        }
+                        else
+                        {
+                            numberRangeQuery.Lte = maxPrice;
+                            numberRangeQuery.Gte = minPrice;
+                        }
+
+                        var rangeQuery = Query.Range(numberRangeQuery);
+                        queries.Add(rangeQuery);
                     }
 
                     var colorCriteria = filterCriteria.ColorCriteria;
@@ -44,8 +153,8 @@ namespace SearchWebApi.Services
                         var values = colorCriteria.Values;
                         if (values.Count > 0)
                         {
-                            var fieldValues = values.Select(v => FieldValue.String(v)).ToList();
-                            queries.Add(Query.Terms(new TermsQuery() { Field = new Field("color"), Terms = new TermsQueryField(new ReadOnlyCollection<FieldValue>(fieldValues)) })); 
+                            var termQuery = GetTermQuery("color", values);
+                            queries.Add(termQuery);
                         }
                     }
 
@@ -56,8 +165,8 @@ namespace SearchWebApi.Services
                         var values = brandCriteria.Values;
                         if (values.Count > 0)
                         {
-                            var fieldValues = values.Select(v => FieldValue.String(v)).ToList();
-                            queries.Add(Query.Terms(new TermsQuery() { Field = new Field("brand"), Terms = new TermsQueryField(new ReadOnlyCollection<FieldValue>(fieldValues)) }));
+                            var termQuery = GetTermQuery("brand", values);
+                            queries.Add(termQuery);
                         }
                     }
                 }
@@ -82,7 +191,7 @@ namespace SearchWebApi.Services
                 if (response.IsValidResponse)
                 {
                     var docs = response.Documents;
-                    content.Records = [..docs];
+                    content.Records = [.. docs];
                     content.Total = docs.Count;
                     status = AmcartRequestStatus.Success;
                 }
@@ -95,12 +204,23 @@ namespace SearchWebApi.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError("{Message}", ex.Message);
                 return new AmcartListResponse<Product>
                 {
                     Content = null,
-                    Status = AmcartRequestStatus.Error,
+                    Status = AmcartRequestStatus.InternalServerError,
                 };
             }
+        }
+
+        private static Query GetTermQuery(string field, List<string> values)
+        {
+            var fieldValues = values.Select(v => FieldValue.String(v)).ToList();
+            return Query.Terms(new TermsQuery()
+            {
+                Field = new Field(field),
+                Terms = new TermsQueryField(new ReadOnlyCollection<FieldValue>(fieldValues))
+            });
         }
     }
 }

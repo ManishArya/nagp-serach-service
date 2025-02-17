@@ -3,7 +3,7 @@
     public enum AmcartRequestStatus
     {
         Success = 200,
-        Error = 500,
+        InternalServerError = 500,
         BadRequest=400
     }
 }

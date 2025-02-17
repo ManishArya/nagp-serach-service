@@ -2,9 +2,9 @@
 {
     public static class StringExtension
     {
-        public static readonly String[] specialCharacters = {"+", "-", "$", "{", "}", "[", "]",
-                "(", ")", ".", "*", "=", "?", "|", "~", ":", "&", "%"
-                , "/", "^", "!"};
+        public static readonly string[] specialCharacters = {"+", "-", "$", "{", "}", "[", "]",
+                "(", ")", ".", "*", "=", "?", "|", "~", ":", "&", "%", "/", "^", "!"};
+
         public static string EscapeCharacters(this string input)
         {
             foreach (var character in specialCharacters)
@@ -20,11 +20,7 @@
 
         public static string ReplaceUnwantedCharacter(this string input)
         {
-            string toRet = "";
-            if (!string.IsNullOrEmpty(input))
-            {
-                toRet = input.Replace("[><]", "");
-            }
+            var toRet = input.Replace("[><]", "");
             return toRet;
         }
     }

@@ -85,9 +85,19 @@ namespace SearchWebApi.Services
                 return new AmcartListResponse<Product>
                 {
                     Content = null,
-                    Status = AmcartRequestStatus.Error,
+                    Status = AmcartRequestStatus.InternalServerError,
                 };
             }
+        }
+
+        Task<AmcartResponse<List<Product>>> ISearchService.GetSearchSuggestions(string query)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<AmcartListResponse<Product>> ISearchService.Search(SearchCriteriaRequest searchRequest)
+        {
+            throw new NotImplementedException();
         }
     }
 }
