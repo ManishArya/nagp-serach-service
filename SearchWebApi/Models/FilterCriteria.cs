@@ -4,6 +4,7 @@
     {
         public FilterCriteria() { }
 
+        public string? Category { get; set; } = string.Empty;
         public string ? SearchText { get; set; } = string.Empty;
 
         public RangeFilterCriteria? PriceCriteria { get; set; }

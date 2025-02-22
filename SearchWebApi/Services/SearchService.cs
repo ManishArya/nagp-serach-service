@@ -77,51 +77,50 @@ namespace SearchWebApi.Services
 
                 if (filterCriteria != null)
                 {
-                    if (!string.IsNullOrEmpty(filterCriteria.SearchText))
+                    ICollection<Query> searchQueries = [];
+
+                    if (!string.IsNullOrEmpty(filterCriteria.Category))
                     {
-                        var searchText = filterCriteria.SearchText.ToLower();
-                        ICollection< Query> searchQuries = [];
+                        var category = filterCriteria.Category.ToLower();
+                        var categoryQuery = Query.Term(new TermQuery(new Field("category")) { Boost = 2, Value = category, CaseInsensitive = true });
+                        searchQueries.Add(categoryQuery);
 
-                        if (searchText.Contains('/'))
-                        {
-                            var category = searchText.Split('/').Last();
-                            var categoryQuery = Query.Term(new TermQuery(new Field("category")) { Boost = 2, Value = category, CaseInsensitive = true });
-                            searchQuries.Add(categoryQuery);
-                        }
-                        else
-                        {
-                            searchText = searchText.EscapeCharacters();
-                            var multiMatchQuery = Query.
-                                                       MultiMatch(new MultiMatchQuery()
-                                                       {
-                                                           Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
-                                                           Query = searchText,
-                                                           Type = TextQueryType.Phrase
-                                                       });
+                    }
+                    else if (!string.IsNullOrEmpty(filterCriteria.SearchText))
+                    {
+                        var searchText = filterCriteria.SearchText.EscapeCharacters();
+                        var multiMatchQuery = Query.
+                                                   MultiMatch(new MultiMatchQuery()
+                                                   {
+                                                       Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
+                                                       Query = searchText,
+                                                       Type = TextQueryType.Phrase
+                                                   });
 
-                            var multiMatchFuzzyQuery = Query.
-                                                        MultiMatch(new MultiMatchQuery()
-                                                        {
-                                                            Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
-                                                            Boost = 2,
-                                                            Query = searchText,
-                                                            Fuzziness = new Fuzziness("AUTO"),
-                                                        });
-                            var queryString = Query.
-                                                  QueryString(new QueryStringQuery()
-                                                  {
-                                                      Fields = Fields.FromStrings(["name", "brand", "tags", "color"]),
-                                                      Query = "*" + searchText + "*"
-                                                  });
-                            searchQuries = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
-                        }
+                        var multiMatchFuzzyQuery = Query.
+                                                    MultiMatch(new MultiMatchQuery()
+                                                    {
+                                                        Fields = Fields.FromStrings(["name", "brand", "color", "tags", "category"]),
+                                                        Boost = 2,
+                                                        Query = searchText,
+                                                        Fuzziness = new Fuzziness("AUTO"),
+                                                    });
+                        var queryString = Query.
+                                              QueryString(new QueryStringQuery()
+                                              {
+                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color"]),
+                                                  Query = "*" + searchText + "*"
+                                              });
+                        searchQueries = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
+                    }
 
-                        var boolQuery = Query.Bool(new BoolQuery() { Should = searchQuries, MinimumShouldMatch = 1 });
+                    if (searchQueries.Count != 0)
+                    {
+                        var boolQuery = Query.Bool(new BoolQuery() { Should = searchQueries, MinimumShouldMatch = 1 });
                         queries.Add(boolQuery);
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
-
                     if (priceCriteria != null)
                     {
                         var maxPrice = priceCriteria.MaxVal;
