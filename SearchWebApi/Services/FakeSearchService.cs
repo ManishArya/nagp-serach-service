@@ -90,7 +90,7 @@ namespace SearchWebApi.Services
             }
         }
 
-        Task<AmcartResponse<List<Product>>> ISearchService.GetSearchSuggestions(string query)
+        Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
         {
             throw new NotImplementedException();
         }

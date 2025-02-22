@@ -13,11 +13,11 @@ namespace SearchWebApi.Services
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
         private readonly ILogger<SearchService> _logger = logger;
 
-        async Task<AmcartResponse<List<Product>>> ISearchService.GetSearchSuggestions(string query)
+        async Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
         {
             try
             {
-                var amcartResponse = new AmcartResponse<List<Product>>() { Status = AmcartRequestStatus.BadRequest };
+                var amcartResponse = new AmcartResponse<List<ProductSuggestion>>() { Status = AmcartRequestStatus.BadRequest };
 
                 if (!string.IsNullOrEmpty(query))
                 {
@@ -46,7 +46,7 @@ namespace SearchWebApi.Services
                         })
                     };
 
-                    var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
+                    var response = await _elasticSearchService.Client.SearchAsync<ProductSuggestion>(request);
 
                     if (response.IsValidResponse)
                     {
@@ -62,7 +62,7 @@ namespace SearchWebApi.Services
             catch (Exception ex)
             {
                 _logger.LogError("{Message}", ex.Message);
-                return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
+                return new AmcartResponse<List<ProductSuggestion>> { Status = AmcartRequestStatus.InternalServerError };
             }
         }
 
@@ -92,7 +92,7 @@ namespace SearchWebApi.Services
                         var multiMatchQuery = Query.
                                                    MultiMatch(new MultiMatchQuery()
                                                    {
-                                                       Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
+                                                       Fields = Fields.FromStrings(["name", "brand", "color", "tags", "category"]),
                                                        Query = searchText,
                                                        Type = TextQueryType.Phrase
                                                    });
@@ -108,7 +108,7 @@ namespace SearchWebApi.Services
                         var queryString = Query.
                                               QueryString(new QueryStringQuery()
                                               {
-                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color"]),
+                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category"]),
                                                   Query = "*" + searchText + "*"
                                               });
                         searchQueries = [multiMatchFuzzyQuery, multiMatchQuery, queryString];

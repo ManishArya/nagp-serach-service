@@ -6,6 +6,6 @@ namespace SearchWebApi.Services.Interfaces
     {
         Task<AmcartListResponse<Product>> Search(SearchCriteriaRequest searchRequest);
 
-        Task<AmcartResponse<List<Product>>> GetSearchSuggestions(string query);
+        Task<AmcartResponse<List<ProductSuggestion>>> GetSearchSuggestions(string query);
     }
 }
