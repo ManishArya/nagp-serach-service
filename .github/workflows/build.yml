@@ -29,3 +29,25 @@ jobs:
           push: true
           tags: ${{ secrets.AZURE_URL}}/amcart:searchAPiv1
           context: ./SearchWebApi
+
+      - name: Kubernetes Set Context
+        uses: Azure/k8s-set-context@v3.0
+        with:
+          method: kubeconfig
+          kubeconfig: ${{secrets.K8S_CONFIG}}
+
+      - uses: azure/k8s-bake@v1
+        with:
+          renderEngine: "helm2"
+          helmChart: "./k8s/search-chart-0.1.0.tgz"
+          helm-version: "latest"
+          overrides: |
+            imagePath:${{ secrets.AZURE_URL}}/amcart:searchAPiv1
+            cloudId:${{secrets.cloudId}}
+            apikey:${{secrets.apikey}}
+        id: bake
+      - uses: azure/k8s-deploy@v1
+        with:
+          manifests: ${{ steps.bake.outputs.manifestsBundle }}
+          images: |
+            ${{ secrets.AZURE_URL}}/amcart:searchAPiv1

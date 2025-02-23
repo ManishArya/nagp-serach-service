@@ -22,10 +22,3 @@ spec:
         target:
           type: Utilization
           averageUtilization: 50
-    behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 10
-      policies:
-        - type: Percent
-          value: 50
-          periodSeconds: 10
