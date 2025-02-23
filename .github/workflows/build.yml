@@ -40,7 +40,7 @@ jobs:
         with:
           renderEngine: "helm2"
           silent: 'false'
-          helmChart: "./k8s/search-chart-0.1.0.tgz"
+          helmChart: "./k8s/search-chart"
           helm-version: "latest"
           overrides: |
             imagePath:${{ secrets.AZURE_URL}}/amcart:searchAPiv1
