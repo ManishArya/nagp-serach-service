@@ -180,7 +180,7 @@ namespace SearchWebApi.Services
                     Size = criteriaRequest.PagingCriteria.Page,
                     From = criteriaRequest.PagingCriteria.CurrentPage - 1,
                     Sort = [SortOptions.Field(new Field(expression), new FieldSort() { Order = order, NumericType = FieldSortNumericType.Double })],
-                    Query = Query.Bool(new BoolQuery() { Must = queries })
+                    Query = Query.Bool(new BoolQuery() { Must = queries }),
                 };
 
                 var response = await _elasticSearchService.Client.SearchAsync<Product>(request);

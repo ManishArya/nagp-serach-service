@@ -10,6 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove=".github\**" />
+    <Compile Remove="k8s\**" />
+    <Content Remove=".github\**" />
+    <Content Remove="k8s\**" />
+    <EmbeddedResource Remove=".github\**" />
+    <EmbeddedResource Remove="k8s\**" />
+    <None Remove=".github\**" />
+    <None Remove="k8s\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Elastic.Clients.Elasticsearch" Version="8.17.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
