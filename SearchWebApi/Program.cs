@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using SearchWebApi.Elastic;
 using SearchWebApi.Services;
 using SearchWebApi.Services.Interfaces;

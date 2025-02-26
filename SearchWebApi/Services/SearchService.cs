@@ -12,7 +12,7 @@ namespace SearchWebApi.Services
     {
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
         private readonly ILogger<SearchService> _logger = logger;
-
+        private readonly string[] gender = ["men", "women"];
         async Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
         {
             try
@@ -26,7 +26,7 @@ namespace SearchWebApi.Services
                                 .EscapeCharacters();
 
                     var wildcardQuery = query + "*";
-                    var request = new SearchRequest("mcart")
+                    var request = new SearchRequest("suggestions")
                     {
                         Size = 50,
                         From = 0,
@@ -37,12 +37,7 @@ namespace SearchWebApi.Services
                                             Fields = Fields.FromString("name"),
                                             Query = wildcardQuery
                                          }),
-                                       Query.MultiMatch(new MultiMatchQuery()
-                                        {
-                                            Fields = Fields.FromStrings(["name", "brand", "color", "tags"]),
-                                            Fuzziness = new Fuzziness("AUTO"),
-                                            Query = query
-                                         })]
+                                      ]
                         })
                     };
 
@@ -77,24 +72,25 @@ namespace SearchWebApi.Services
 
                 if (filterCriteria != null)
                 {
-                    ICollection<Query> searchQueries = [];
+                    BoolQuery boolQuery = new();
 
                     if (!string.IsNullOrEmpty(filterCriteria.Category))
                     {
                         var category = filterCriteria.Category.ToLower();
                         var categoryQuery = Query.Term(new TermQuery(new Field("category")) { Boost = 2, Value = category, CaseInsensitive = true });
-                        searchQueries.Add(categoryQuery);
+                        boolQuery.Must = [categoryQuery];
+                        queries.Add(boolQuery);
 
                     }
                     else if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
-                        var searchText = filterCriteria.SearchText.EscapeCharacters();
+                        var searchText = filterCriteria.SearchText.EscapeCharacters().ToLower();
                         var multiMatchQuery = Query.
                                                    MultiMatch(new MultiMatchQuery()
                                                    {
                                                        Fields = Fields.FromStrings(["name", "brand", "color", "tags", "category"]),
                                                        Query = searchText,
-                                                       Type = TextQueryType.Phrase
+                                                       Boost = 3
                                                    });
 
                         var multiMatchFuzzyQuery = Query.
@@ -111,12 +107,12 @@ namespace SearchWebApi.Services
                                                   Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category"]),
                                                   Query = "*" + searchText + "*"
                                               });
-                        searchQueries = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
-                    }
+                        if(gender.Contains(searchText))
+                        {
+                            boolQuery.Must = [Query.Match(new MatchQuery(new Field("gender")) { Query = searchText})];
+                        }
 
-                    if (searchQueries.Count != 0)
-                    {
-                        var boolQuery = Query.Bool(new BoolQuery() { Should = searchQueries, MinimumShouldMatch = 1 });
+                        boolQuery.Should = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
                         queries.Add(boolQuery);
                     }
 
