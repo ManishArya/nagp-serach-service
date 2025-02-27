@@ -13,6 +13,7 @@ namespace SearchWebApi.Services
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
         private readonly ILogger<SearchService> _logger = logger;
         private readonly string[] gender = ["men", "women"];
+
         async Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
         {
             try
@@ -82,7 +83,9 @@ namespace SearchWebApi.Services
 
                     else if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
-                        var searchText = filterCriteria.SearchText.EscapeCharacters().ToLower();
+                        var searchText = filterCriteria.SearchText.ToLower();
+                       
+                        searchText = filterCriteria.SearchText.EscapeCharacters();
                         var multiMatchQuery = Query.
                                                    MultiMatch(new MultiMatchQuery()
                                                    {
@@ -90,27 +93,22 @@ namespace SearchWebApi.Services
                                                        Query = searchText,
                                                        Boost = 3
                                                    });
-
-                        var multiMatchFuzzyQuery = Query.
-                                                    MultiMatch(new MultiMatchQuery()
-                                                    {
-                                                        Fields = Fields.FromStrings(["name", "brand", "color", "tags", "category"]),
-                                                        Boost = 2,
-                                                        Query = searchText,
-                                                        Fuzziness = new Fuzziness("AUTO"),
-                                                    });
                         var queryString = Query.
                                               QueryString(new QueryStringQuery()
                                               {
                                                   Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category"]),
                                                   Query = "*" + searchText + "*"
                                               });
-                        if (gender.Contains(searchText))
+
+                        var split = searchText.Split(' ');
+
+                        if (split.Any( s=> gender.Contains(s)))
                         {
                            must.Add(Query.Match(new MatchQuery(new Field("gender")) { Query = searchText }));
                         }
 
-                        should = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
+                        should = [multiMatchQuery, queryString];
+                        must.Add(new BoolQuery() { Should = should });   
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
