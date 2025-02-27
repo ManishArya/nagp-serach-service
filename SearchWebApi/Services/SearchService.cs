@@ -28,7 +28,7 @@ namespace SearchWebApi.Services
                     var wildcardQuery = query + "*";
                     var request = new SearchRequest("suggestions")
                     {
-                        Size = 50,
+                        Size = 10,
                         From = 0,
                         Query = Query.Bool(new BoolQuery()
                         {
@@ -68,20 +68,18 @@ namespace SearchWebApi.Services
                 SearchCriteriaRequest criteriaRequest = searchRequest ?? new();
                 var filterCriteria = criteriaRequest.FilterCriteria;
 
-                ICollection<Query> queries = [];
+                ICollection<Query> must = [];
+                ICollection<Query> should = [];
 
                 if (filterCriteria != null)
                 {
-                    BoolQuery boolQuery = new();
-
                     if (!string.IsNullOrEmpty(filterCriteria.Category))
                     {
                         var category = filterCriteria.Category.ToLower();
                         var categoryQuery = Query.Term(new TermQuery(new Field("category")) { Boost = 2, Value = category, CaseInsensitive = true });
-                        boolQuery.Must = [categoryQuery];
-                        queries.Add(boolQuery);
-
+                        must.Add(categoryQuery);
                     }
+
                     else if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
                         var searchText = filterCriteria.SearchText.EscapeCharacters().ToLower();
@@ -107,13 +105,12 @@ namespace SearchWebApi.Services
                                                   Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category"]),
                                                   Query = "*" + searchText + "*"
                                               });
-                        if(gender.Contains(searchText))
+                        if (gender.Contains(searchText))
                         {
-                            boolQuery.Must = [Query.Match(new MatchQuery(new Field("gender")) { Query = searchText})];
+                           must.Add(Query.Match(new MatchQuery(new Field("gender")) { Query = searchText }));
                         }
 
-                        boolQuery.Should = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
-                        queries.Add(boolQuery);
+                        should = [multiMatchFuzzyQuery, multiMatchQuery, queryString];
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
@@ -138,7 +135,7 @@ namespace SearchWebApi.Services
                         }
 
                         var rangeQuery = Query.Range(numberRangeQuery);
-                        queries.Add(rangeQuery);
+                        must.Add(rangeQuery);
                     }
 
                     var colorCriteria = filterCriteria.ColorCriteria;
@@ -149,7 +146,7 @@ namespace SearchWebApi.Services
                         if (values.Count > 0)
                         {
                             var termQuery = GetTermQuery("color", values);
-                            queries.Add(termQuery);
+                            must.Add(termQuery);
                         }
                     }
 
@@ -161,7 +158,7 @@ namespace SearchWebApi.Services
                         if (values.Count > 0)
                         {
                             var termQuery = GetTermQuery("brand", values);
-                            queries.Add(termQuery);
+                            must.Add(termQuery);
                         }
                     }
                 }
@@ -176,7 +173,7 @@ namespace SearchWebApi.Services
                     Size = criteriaRequest.PagingCriteria.Page,
                     From = criteriaRequest.PagingCriteria.CurrentPage - 1,
                     Sort = [SortOptions.Field(new Field(expression), new FieldSort() { Order = order, NumericType = FieldSortNumericType.Double })],
-                    Query = Query.Bool(new BoolQuery() { Must = queries }),
+                    Query = Query.Bool(new BoolQuery() { Must = must, Should=should }),
                 };
 
                 var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
@@ -205,6 +202,75 @@ namespace SearchWebApi.Services
                     Content = null,
                     Status = AmcartRequestStatus.InternalServerError,
                 };
+            }
+        }
+
+        async Task<AmcartResponse<List<Product>>> ISearchService.GetBestSellerProducts()
+        {
+            try
+            {
+                var amcartResponse = new AmcartResponse<List<Product>>() { Status = AmcartRequestStatus.BadRequest };
+                var request = new SearchRequest("mcart")
+                {
+                    Size = 10,
+                    From = 0,
+                    Query = Query.Bool(new BoolQuery()
+                    {
+                        Should = [Query.Match(new MatchQuery(new Field("tags")) { Query = "Bestseller" })]
+                    })
+                };
+
+                var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
+
+                if (response.IsValidResponse)
+                {
+                    var docs = response.Documents;
+                    amcartResponse.Content = [.. docs];
+                    amcartResponse.Status = AmcartRequestStatus.Success;
+                }
+
+                return amcartResponse;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("{Message}", ex.Message);
+                return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
+            }
+        }
+
+        async Task<AmcartResponse<List<Product>>> ISearchService.GetSimillarProducts(int productId, string category)
+        {
+            try
+            {
+                var amcartResponse = new AmcartResponse<List<Product>>() { Status = AmcartRequestStatus.BadRequest };
+                var request = new SearchRequest("mcart")
+                {
+                    Size = 10,
+                    From = 0,
+                    Query = Query.Bool(new BoolQuery()
+                    {
+                        Must = [Query.Match(new MatchQuery(new Field("category")) { Query = category })],
+                        MustNot = [Query.Match(new MatchQuery(new Field("id")) { Query = productId })]
+                    })
+                };
+
+                var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
+
+                if (response.IsValidResponse)
+                {
+                    var docs = response.Documents;
+                    amcartResponse.Content = [.. docs];
+                    amcartResponse.Status = AmcartRequestStatus.Success;
+                }
+
+                return amcartResponse;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("{Message}", ex.Message);
+                return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
             }
         }
 

@@ -90,7 +90,17 @@ namespace SearchWebApi.Services
             }
         }
 
+        Task<AmcartResponse<List<Product>>> ISearchService.GetBestSellerProducts()
+        {
+            throw new NotImplementedException();
+        }
+
         Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<AmcartResponse<List<Product>>> ISearchService.GetSimillarProducts(int productId, string category)
         {
             throw new NotImplementedException();
         }

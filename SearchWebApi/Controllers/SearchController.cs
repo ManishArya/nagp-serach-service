@@ -17,6 +17,20 @@ namespace SearchWebApi.Controllers
             return StatusCode((int)results.Status, results);
         }
 
+        [HttpGet("getbestsellerproducts")]
+        public async Task<IActionResult> GetBestSellerProducts() 
+        {
+            var results = await _searchService.GetBestSellerProducts();
+            return StatusCode((int)results.Status, results);
+        }
+
+        [HttpGet("getsimillarproducts/{productId}")]
+        public async Task<IActionResult> GetSimillarProducts([FromRoute] int productId, [FromQuery] string category) 
+        {
+            var results = await _searchService.GetSimillarProducts(productId, category);
+            return StatusCode((int)results.Status, results);
+        }
+
         [HttpGet("getsuggestions")]
         public async Task<IActionResult> GetSearchSuggestions([FromQuery] string query) 
         {

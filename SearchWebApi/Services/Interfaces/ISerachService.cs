@@ -7,5 +7,9 @@ namespace SearchWebApi.Services.Interfaces
         Task<AmcartListResponse<Product>> Search(SearchCriteriaRequest searchRequest);
 
         Task<AmcartResponse<List<ProductSuggestion>>> GetSearchSuggestions(string query);
+
+        Task<AmcartResponse<List<Product>>> GetBestSellerProducts();
+
+        Task<AmcartResponse<List<Product>>> GetSimillarProducts(int productId, string category);
     }
 }
