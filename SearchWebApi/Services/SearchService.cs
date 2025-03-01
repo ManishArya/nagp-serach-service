@@ -70,8 +70,7 @@ namespace SearchWebApi.Services
                 var filterCriteria = criteriaRequest.FilterCriteria;
 
                 ICollection<Query> must = [];
-                ICollection<Query> should = [];
-
+              
                 if (filterCriteria != null)
                 {
                     if (!string.IsNullOrEmpty(filterCriteria.Category))
@@ -86,29 +85,33 @@ namespace SearchWebApi.Services
                         var searchText = filterCriteria.SearchText.ToLower();
                        
                         searchText = filterCriteria.SearchText.EscapeCharacters();
+
+                        var split = searchText.Split(' ');
+
+                        if (split.Any(s => gender.Contains(s)))
+                        {
+                            var termQuery = GetTermQuery("gender", [.. split]);
+                            must.Add(termQuery);
+                        }
+
                         var multiMatchQuery = Query.
                                                    MultiMatch(new MultiMatchQuery()
                                                    {
-                                                       Fields = Fields.FromStrings(["name", "brand", "color", "tags", "category"]),
+                                                       Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender"]),
                                                        Query = searchText,
-                                                       Boost = 3
+                                                       MinimumShouldMatch = 2,
+                          
                                                    });
                         var queryString = Query.
                                               QueryString(new QueryStringQuery()
                                               {
-                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category"]),
-                                                  Query = "*" + searchText + "*"
+                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender"]),
+                                                  Query = "*" + searchText + "*",
+                                                  MinimumShouldMatch = 2,
+                                                  
                                               });
 
-                        var split = searchText.Split(' ');
-
-                        if (split.Any( s=> gender.Contains(s)))
-                        {
-                           must.Add(Query.Match(new MatchQuery(new Field("gender")) { Query = searchText }));
-                        }
-
-                        should = [multiMatchQuery, queryString];
-                        must.Add(new BoolQuery() { Should = should });   
+                        must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });   
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
@@ -171,7 +174,7 @@ namespace SearchWebApi.Services
                     Size = criteriaRequest.PagingCriteria.Page,
                     From = criteriaRequest.PagingCriteria.CurrentPage - 1,
                     Sort = [SortOptions.Field(new Field(expression), new FieldSort() { Order = order, NumericType = FieldSortNumericType.Double })],
-                    Query = Query.Bool(new BoolQuery() { Must = must, Should=should }),
+                    Query = Query.Bool(new BoolQuery() { Must = must}),
                 };
 
                 var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
