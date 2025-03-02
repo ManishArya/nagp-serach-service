@@ -19,5 +19,5 @@ RUN dotnet publish "./SearchWebApi.csproj" -c $BUILD_CONFIGURATION -o /app/publi
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-EXPOSE 8080
+EXPOSE 80
 ENTRYPOINT ["dotnet", "SearchWebApi.dll"]
