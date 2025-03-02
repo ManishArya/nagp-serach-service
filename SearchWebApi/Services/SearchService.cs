@@ -70,7 +70,7 @@ namespace SearchWebApi.Services
                 var filterCriteria = criteriaRequest.FilterCriteria;
 
                 ICollection<Query> must = [];
-              
+
                 if (filterCriteria != null)
                 {
                     if (!string.IsNullOrEmpty(filterCriteria.Category))
@@ -83,11 +83,11 @@ namespace SearchWebApi.Services
                     else if (!string.IsNullOrEmpty(filterCriteria.SearchText))
                     {
                         var searchText = filterCriteria.SearchText.ToLower();
-                       
+
                         searchText = filterCriteria.SearchText.EscapeCharacters();
 
                         var split = searchText.Split(' ');
-
+                        var len = split.Length;
                         if (split.Any(s => gender.Contains(s)))
                         {
                             var termQuery = GetTermQuery("gender", [.. split]);
@@ -97,21 +97,22 @@ namespace SearchWebApi.Services
                         var multiMatchQuery = Query.
                                                    MultiMatch(new MultiMatchQuery()
                                                    {
-                                                       Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender"]),
+                                                       Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender"]),
                                                        Query = searchText,
                                                        MinimumShouldMatch = 2,
-                          
+                                                       Analyzer= "my_analyzer",
                                                    });
                         var queryString = Query.
                                               QueryString(new QueryStringQuery()
                                               {
-                                                  Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender"]),
+                                                  Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender"]),
                                                   Query = "*" + searchText + "*",
                                                   MinimumShouldMatch = 2,
-                                                  
+                                                  Analyzer = "my_analyzer"
+
                                               });
 
-                        must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });   
+                        must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;
@@ -146,7 +147,7 @@ namespace SearchWebApi.Services
                         var values = colorCriteria.Values;
                         if (values.Count > 0)
                         {
-                            var termQuery = GetTermQuery("color", values);
+                            var termQuery = GetTermQuery("color.keyword", values);
                             must.Add(termQuery);
                         }
                     }
@@ -158,23 +159,18 @@ namespace SearchWebApi.Services
                         var values = brandCriteria.Values;
                         if (values.Count > 0)
                         {
-                            var termQuery = GetTermQuery("brand", values);
+                            var termQuery = GetTermQuery("brand.keyword", values);
                             must.Add(termQuery);
                         }
                     }
                 }
 
-                var sortingCriteria = criteriaRequest.SortingCriteria;
-                var sortKey = sortingCriteria.SortKey;
-                var order = sortingCriteria.IsDescending ? SortOrder.Desc : SortOrder.Asc;
-                var expression = ExpressionBuilder.GetExpression<Product, object>(sortKey.ToString());
-
                 var request = new SearchRequest("mcart")
                 {
                     Size = criteriaRequest.PagingCriteria.Page,
                     From = criteriaRequest.PagingCriteria.CurrentPage - 1,
-                    Sort = [SortOptions.Field(new Field(expression), new FieldSort() { Order = order, NumericType = FieldSortNumericType.Double })],
-                    Query = Query.Bool(new BoolQuery() { Must = must}),
+                    Sort = GetSortOptions(criteriaRequest.SortingCriteria),
+                    Query = Query.Bool(new BoolQuery() { Must = must }),
                 };
 
                 var response = await _elasticSearchService.Client.SearchAsync<Product>(request);
@@ -273,6 +269,29 @@ namespace SearchWebApi.Services
                 _logger.LogError("{Message}", ex.Message);
                 return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
             }
+        }
+
+        private static ICollection<SortOptions> GetSortOptions(SortingCriteria sortingCriteria)
+        {
+            var order = sortingCriteria.IsDescending ? SortOrder.Desc : SortOrder.Asc;
+            var fieldSort = new FieldSort() { Order = order };
+            var sortKey = sortingCriteria.SortKey;
+
+            Field field;
+
+            if (sortKey != SortKeyOption._score)
+            {
+                fieldSort.NumericType = FieldSortNumericType.Double;
+                var expression = ExpressionBuilder.GetExpression<Product, object>(sortKey.ToString());
+                field = new Field(expression);
+            }
+            else
+            {
+                field = new Field("_score");
+            }
+
+            var sortOptions = SortOptions.Field(field, fieldSort);
+            return [sortOptions];
         }
 
         private static Query GetTermQuery(string field, List<string> values)
