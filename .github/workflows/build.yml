@@ -2,7 +2,7 @@
 on:
   push:
     branches:
-      - "master"
+      - "feature"
 jobs:
   build:
     name: "Build and Push to ACR"
@@ -46,6 +46,7 @@ jobs:
             imagePath:${{ secrets.AZURE_URL}}/amcart:searchAPiv1
             cloudId:${{secrets.cloudId}}
             apikey:${{secrets.apikey}}
+            serviceType:LoadBalancer
         id: bake
       - uses: azure/k8s-deploy@v1
         with:
