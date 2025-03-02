@@ -47,6 +47,7 @@ jobs:
             cloudId:${{secrets.cloudId}}
             apikey:${{secrets.apikey}}
             serviceType:LoadBalancer
+            cloudId2:${{secrets.cloudId2}}
         id: bake
       - uses: azure/k8s-deploy@v1
         with:
