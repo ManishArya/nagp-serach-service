@@ -6,4 +6,4 @@ type: Opaque
 data:
   ElasticSettings__CloudId: "{{ .Values.cloudId }}"
   ElasticSettings__ApiKey: "{{ .Values.apikey }}"
-  ElasticSettings__CloudId2: "{{.Values.CLOUDID2}}"
+  ElasticSettings__CloudId2: "{{.Values.cloudId2}}"
