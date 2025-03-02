@@ -2,7 +2,7 @@
 on:
   push:
     branches:
-      - "feature"
+      - "master"
 jobs:
   build:
     name: "Build and Push to ACR"
@@ -39,7 +39,7 @@ jobs:
       - uses: azure/k8s-bake@v1
         with:
           renderEngine: "helm2"
-          silent: 'false'
+          silent: "false"
           helmChart: "./k8s/search-chart"
           helm-version: "latest"
           overrides: |

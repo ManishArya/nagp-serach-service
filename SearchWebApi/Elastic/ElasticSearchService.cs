@@ -13,8 +13,8 @@ namespace SearchWebApi.Elastic
         public ElasticSearchService(IOptions<ElasticSettings> options)
         {
             _elasticSettings = options.Value;
-
-            _client = new ElasticsearchClient(_elasticSettings.CloudId, new ApiKey(_elasticSettings.ApiKey));
+            var cloudId = string.Concat(_elasticSettings.CloudId, _elasticSettings.CloudId2);
+           _client = new ElasticsearchClient(cloudId, new ApiKey(_elasticSettings.ApiKey));
         }
 
         public ElasticsearchClient Client => _client;
