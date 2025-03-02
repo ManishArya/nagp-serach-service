@@ -4,6 +4,6 @@ metadata:
   name: searchapisettings
 type: Opaque
 data:
-  ElasticSettings:CloudId: "{{ .Values.cloudId }}"
-  ElasticSettings:ApiKey: "{{ .Values.apikey }}"
-  ElasticSettings:CloudId2: "{{.Values.cloudId2}}"
+  ElasticSettings__CloudId: "{{ .Values.cloudId }}"
+  ElasticSettings__ApiKey: "{{ .Values.apikey }}"
+  ElasticSettings__CloudId2: "{{.Values.cloudId2}}"
