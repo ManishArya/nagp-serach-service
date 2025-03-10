@@ -5,13 +5,15 @@ using SearchWebApi.Models;
 using SearchWebApi.Services.Interfaces;
 using SearchWebApi.Utils;
 using System.Collections.ObjectModel;
+using Microsoft.Extensions.Options;
 
 namespace SearchWebApi.Services
 {
-    public class SearchService(ElasticSearchService elasticSearchService, ILogger<SearchService> logger) : ISearchService
+    public class SearchService(ElasticSearchService elasticSearchService, ILogger<SearchService> logger, IOptions<ImageSettings> options) : ISearchService
     {
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
         private readonly ILogger<SearchService> _logger = logger;
+        private readonly ImageSettings _imageSettings = options.Value;
         private readonly string[] gender = ["men", "women"];
 
         async Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
@@ -180,6 +182,7 @@ namespace SearchWebApi.Services
                 if (response.IsValidResponse)
                 {
                     var docs = response.Documents;
+                    AppendToImageServerUrl(docs);
                     content.Records = [.. docs];
                     content.Total = docs.Count;
                     status = AmcartRequestStatus.Success;
@@ -209,7 +212,7 @@ namespace SearchWebApi.Services
                 var amcartResponse = new AmcartResponse<List<Product>>() { Status = AmcartRequestStatus.BadRequest };
                 var request = new SearchRequest("mcart")
                 {
-                    Size = 10,
+                    Size = 20,
                     From = 0,
                     Query = Query.Bool(new BoolQuery()
                     {
@@ -222,6 +225,7 @@ namespace SearchWebApi.Services
                 if (response.IsValidResponse)
                 {
                     var docs = response.Documents;
+                    AppendToImageServerUrl(docs);
                     amcartResponse.Content = [.. docs];
                     amcartResponse.Status = AmcartRequestStatus.Success;
                 }
@@ -257,6 +261,7 @@ namespace SearchWebApi.Services
                 if (response.IsValidResponse)
                 {
                     var docs = response.Documents;
+                    AppendToImageServerUrl(docs);
                     amcartResponse.Content = [.. docs];
                     amcartResponse.Status = AmcartRequestStatus.Success;
                 }
@@ -268,6 +273,15 @@ namespace SearchWebApi.Services
             {
                 _logger.LogError("{Message}", ex.Message);
                 return new AmcartResponse<List<Product>> { Status = AmcartRequestStatus.InternalServerError };
+            }
+        }
+
+        private void AppendToImageServerUrl(IReadOnlyCollection<Product> products) 
+        {
+            foreach (var product in products)
+            {
+                var imageName = product.ImageUrl;
+                product.ImageUrl = string.Concat(_imageSettings.Url, imageName);
             }
         }
 

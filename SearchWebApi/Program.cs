@@ -1,4 +1,5 @@
 using SearchWebApi.Elastic;
+using SearchWebApi.Models;
 using SearchWebApi.Services;
 using SearchWebApi.Services.Interfaces;
 
@@ -9,6 +10,7 @@ var configuration = builder.Configuration.AddEnvironmentVariables().Build();
 builder.Services.AddCors(c => c.AddPolicy("policy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 builder.Services.Configure<ElasticSettings>(configuration.GetSection(nameof(ElasticSettings)));
+builder.Services.Configure<ImageSettings>(configuration.GetSection(nameof(ImageSettings)));
 // Add services to the container.
 builder.Services.AddTransient<ISearchService, SearchService>();
 builder.Services.AddSingleton<ElasticSearchService>();
