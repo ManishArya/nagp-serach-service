@@ -53,5 +53,6 @@ jobs:
       - uses: azure/k8s-deploy@v1
         with:
           manifests: ${{ steps.bake.outputs.manifestsBundle }}
+          namespace: ${{secrets.namespace}}
           images: |
             ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
