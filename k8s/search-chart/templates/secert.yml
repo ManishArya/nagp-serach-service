@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: searchapisettings
+  namespace: {{.Values.namespace}}
 type: Opaque
 data:
   ElasticSettings__CloudId: "{{ .Values.cloudId }}"

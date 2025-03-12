@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searchapiconfig
+  namespace: {{.Values.namespace}}
+data:
+  ImageSettings__Url: "{{ .Values.imageServer }}"

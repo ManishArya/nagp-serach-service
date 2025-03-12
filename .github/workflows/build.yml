@@ -2,7 +2,7 @@
 on:
   push:
     branches:
-      - "master"
+      - "feature"
 jobs:
   build:
     name: "Build Image and deploy to AKS"
@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ${{ secrets.container_USERNAME}}/amcart:searchAPiv1
+          tags: ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
           context: ./SearchWebApi
 
       - name: Kubernetes Set Context
@@ -42,14 +42,16 @@ jobs:
           helmChart: "./k8s/search-chart"
           helm-version: "latest"
           overrides: |
-            imagePath:${{ secrets.container_USERNAME}}/amcart:searchAPiv1
+            imagePath:${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
             cloudId:${{secrets.cloudId}}
             apikey:${{secrets.apikey}}
             serviceType:ClusterIP
             cloudId2:${{secrets.cloudId2}}
+            imageServer:${{secrets.imageServer}}
+            namespace:${{secrets.namespace}}
         id: bake
       - uses: azure/k8s-deploy@v1
         with:
           manifests: ${{ steps.bake.outputs.manifestsBundle }}
           images: |
-            ${{ secrets.container_USERNAME}}/amcart:searchAPiv1
+            ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
