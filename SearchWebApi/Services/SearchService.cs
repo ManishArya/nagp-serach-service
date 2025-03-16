@@ -14,7 +14,7 @@ namespace SearchWebApi.Services
         private readonly ElasticSearchService _elasticSearchService = elasticSearchService;
         private readonly ILogger<SearchService> _logger = logger;
         private readonly ImageSettings _imageSettings = options.Value;
-        private readonly string[] gender = ["men", "women"];
+        private readonly string[] gender = ["men", "women", "male", "female", "man", "woman", "men's", "women's"];
 
         async Task<AmcartResponse<List<ProductSuggestion>>> ISearchService.GetSearchSuggestions(string query)
         {
@@ -88,33 +88,39 @@ namespace SearchWebApi.Services
 
                         searchText = filterCriteria.SearchText.EscapeCharacters();
 
-                        var split = searchText.Split(' ');
-                        var len = split.Length;
-                        if (split.Any(s => gender.Contains(s)))
+                        if (int.TryParse(searchText, out int result))
                         {
-                            var termQuery = GetTermQuery("gender", [.. split]);
-                            must.Add(termQuery);
+                            must.Add(new BoolQuery() { Should = [Query.Match(new MatchQuery(new Field("id")) { Query = result})] });
                         }
+                        else
+                        {
 
-                        var multiMatchQuery = Query.
-                                                   MultiMatch(new MultiMatchQuery()
-                                                   {
-                                                       Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender"]),
-                                                       Query = searchText,
-                                                       MinimumShouldMatch = 2,
-                                                       Analyzer= "my_analyzer",
-                                                   });
-                        var queryString = Query.
-                                              QueryString(new QueryStringQuery()
-                                              {
-                                                  Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender"]),
-                                                  Query = "*" + searchText + "*",
-                                                  MinimumShouldMatch = 2,
-                                                  Analyzer = "my_analyzer"
+                            var split = searchText.Split([' ', '-']);
+                            var first = split?.FirstOrDefault(s => gender.Contains(s));
+                            if (!string.IsNullOrEmpty(first))
+                            {
+                                must.Add(Query.Match(new MatchQuery(new Field("gender")) { Query = first }));
+                            }
 
-                                              });
+                            var multiMatchQuery = Query.
+                                                       MultiMatch(new MultiMatchQuery()
+                                                       {
+                                                           Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender", "sku"]),
+                                                           Query = searchText,
+                                                           Analyzer = "my_analyzer",
+                                                           MinimumShouldMatch = 1
+                                                       });
+                            var queryString = Query.
+                                                  QueryString(new QueryStringQuery()
+                                                  {
+                                                      Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender", "sku"]),
+                                                      Query = "*" + searchText + "*",
+                                                      Analyzer = "my_analyzer",
+                                                      MinimumShouldMatch=1
+                                                  });
 
-                        must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });
+                            must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });
+                        }
                     }
 
                     var priceCriteria = filterCriteria.PriceCriteria;

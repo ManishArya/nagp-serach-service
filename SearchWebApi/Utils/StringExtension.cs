@@ -2,8 +2,9 @@
 {
     public static class StringExtension
     {
-        public static readonly string[] specialCharacters = {"{", "}", "[", "]",
-                "(", ")", ".", "~", ":", "/", "^", "!"};
+        public static readonly string[] specialCharacters = {"+", "-", "$", "{", "}", "[", "]",
+                "(", ")", ".", "*", "=", "?", "|", "~", ":", "-", "&", "%", "\\"
+                , "/", "^", "!"};
 
         public static readonly char[] metaCharacters = {'+', '-', '$', '{', '}', '[', ']',
                 '(', ')', '.', '*', '=', '?', '|', '~', ':', '&', '%', '/', '^', '!'};

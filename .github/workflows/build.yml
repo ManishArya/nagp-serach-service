@@ -49,6 +49,7 @@ jobs:
             cloudId2:${{secrets.cloudId2}}
             imageServer:${{secrets.imageServer}}
             namespace:${{secrets.namespace}}
+            allowedHosts:${{secrets.origin}}
         id: bake
       - uses: azure/k8s-deploy@v1
         with:
