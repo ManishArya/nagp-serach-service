@@ -7,4 +7,3 @@ data:
   ImageSettings__Url: "{{ .Values.imageServer }}"
   ElasticSettings__CloudId: "{{ .Values.cloudId }}"
   ElasticSettings__ApiKey: "{{ .Values.apikey }}"
-  AllowedHosts: "{{ .Values.allowedHosts}}"
