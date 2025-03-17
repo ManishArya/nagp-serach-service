@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
+          tags: ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}
           context: ./SearchWebApi
 
       - name: Kubernetes Set Context
@@ -42,7 +42,7 @@ jobs:
           helmChart: "./k8s/search-chart"
           helm-version: "latest"
           overrides: |
-            imagePath:${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
+            imagePath:${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}
             cloudId:${{secrets.cloudId}}
             apikey:${{secrets.apikey}}
             serviceType:ClusterIP
@@ -56,4 +56,4 @@ jobs:
           manifests: ${{ steps.bake.outputs.manifestsBundle }}
           namespace: ${{secrets.namespace}}
           images: |
-            ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv1
+            ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}
