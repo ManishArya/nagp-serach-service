@@ -105,18 +105,18 @@ namespace SearchWebApi.Services
                             var multiMatchQuery = Query.
                                                        MultiMatch(new MultiMatchQuery()
                                                        {
-                                                           Fields = Fields.FromStrings(["name^2", "brand", "tags", "color", "category", "gender", "sku"]),
+                                                           Fields = Fields.FromStrings(["title^3", "tags", "category", "sku", "gender"]),
                                                            Query = searchText,
                                                            Analyzer = "my_analyzer",
-                                                           MinimumShouldMatch = 1
+                                                           MinimumShouldMatch = 2
                                                        });
                             var queryString = Query.
                                                   QueryString(new QueryStringQuery()
                                                   {
-                                                      Fields = Fields.FromStrings(["name", "brand", "tags", "color", "category", "gender", "sku"]),
+                                                      Fields = Fields.FromStrings(["title^3", "tags", "category", "sku", "gender"]),
                                                       Query = "*" + searchText + "*",
                                                       Analyzer = "my_analyzer",
-                                                      MinimumShouldMatch=1
+                                                      MinimumShouldMatch = 2
                                                   });
 
                             must.Add(new BoolQuery() { Should = [multiMatchQuery, queryString] });

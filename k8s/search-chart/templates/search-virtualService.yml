@@ -1,0 +1,40 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+ name: searchserver
+ namespace: {{.Values.namespace | quote}}
+spec:
+ hosts:
+   - '*'
+ gateways:
+   - istio-ingress/root-gateway
+ http:
+ - match:
+   - uri:
+       prefix: /api/v1/search
+   route:
+   - destination:
+       host: search-api-svc.amcart.svc.cluster.local
+       port:
+         number: 8080
+   corsPolicy:
+     allowOrigins:
+     - exact: {{.Values.frontdoorurl | quote}}
+     - exact: {{.Values.origin | quote}}
+     allowMethods:
+     - POST
+     - GET
+     - OPTIONS
+     allowHeaders:
+     - X-Custom-Header
+     - content-type
+     - authorization
+     - Access-Control-Allow-Origin
+     - Access-Control-Allow-Methods
+     - Access-Control-Allow-Headers
+     - x-azure-ref
+     exposeHeaders:
+     - X-Expose-Header
+     maxAge: 24h
+     allowCredentials: false
+ 
