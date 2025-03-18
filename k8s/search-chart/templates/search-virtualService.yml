@@ -19,8 +19,8 @@ spec:
          number: 8080
    corsPolicy:
      allowOrigins:
-     - exact: {{.Values.frontdoorurl | quote}}
-     - exact: {{.Values.origin | quote}}
+     - exact: {{.Values.frontDoorUrl}}
+     - exact: {{.Values.origin}}
      allowMethods:
      - POST
      - GET

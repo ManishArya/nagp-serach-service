@@ -50,7 +50,7 @@ jobs:
             imageServer:${{secrets.imageServer}}
             namespace:${{secrets.namespace}}
             origin:${{secrets.origin}}
-            frontdoorurl:${{secrets.frontdoorurl}}
+            frontDoorUrl:${{secrets.frontDoorUrl}}
         id: bake
       - uses: azure/k8s-deploy@v1
         with:
