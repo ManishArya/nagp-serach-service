@@ -1,0 +1,60 @@
+﻿name: Build Image and deploy to AKS
+on:
+  push:
+    branches:
+      - "feature"
+jobs:
+  build:
+    name: "Build Image and deploy to AKS"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.container_USERNAME }}
+          password: ${{ secrets.container_PASS }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}
+          context: ./SearchWebApi
+
+      - name: Kubernetes Set Context
+        uses: Azure/k8s-set-context@v3.0
+        with:
+          method: kubeconfig
+          kubeconfig: ${{secrets.K8S_CONFIG}}
+
+      - uses: azure/k8s-bake@v1
+        with:
+          renderEngine: "helm2"
+          silent: "false"
+          helmChart: "./k8s/search-chart"
+          helm-version: "latest"
+          overrides: |
+            imagePath:${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}
+            cloudId:${{secrets.cloudId}}
+            apikey:${{secrets.apikey}}
+            serviceType:ClusterIP
+            cloudId2:${{secrets.cloudId2}}
+            imageServer:${{secrets.imageServer}}
+            namespace:${{secrets.namespace}}
+            origin:${{secrets.origin}}
+            frontDoorUrl:${{secrets.frontDoorUrl}}
+        id: bake
+      - uses: azure/k8s-deploy@v1
+        with:
+          manifests: ${{ steps.bake.outputs.manifestsBundle }}
+          namespace: ${{secrets.namespace}}
+          images: |
+            ${{ secrets.container_USERNAME}}/${{secrets.repo}}:searchAPiv${{ github.run_attempt }}

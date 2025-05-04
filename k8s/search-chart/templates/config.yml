@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searchapiconfig
+  namespace: {{.Values.namespace | quote}}
+data:
+  ImageSettings__Url: "{{ .Values.imageServer }}"
+  ElasticSettings__CloudId: "{{ .Values.cloudId }}"
+  ElasticSettings__ApiKey: "{{ .Values.apikey }}"
